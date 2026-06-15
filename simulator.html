@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Defensive Python Labs — Interactive Simulator</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #21262d;
+    --border: #30363d;
+    --green: #3fb950;
+    --green-dim: #1a4a23;
+    --red: #f85149;
+    --yellow: #d29922;
+    --blue: #58a6ff;
+    --purple: #bc8cff;
+    --cyan: #39d353;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --text-muted: #484f58;
+    --accent: #238636;
+    --accent-hover: #2ea043;
+    --terminal-bg: #010409;
+    --prompt: #3fb950;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header .logo {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  header .logo span { color: var(--green); }
+  header .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  header .badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .badge-green  { background: #1a4a23; color: #3fb950; border: 1px solid #2ea043; }
+  .badge-blue   { background: #0d2a4e; color: #58a6ff; border: 1px solid #1f6feb; }
+  .badge-yellow { background: #3a2a00; color: #d29922; border: 1px solid #9e6a03; }
+  .badge-purple { background: #2d1f52; color: #bc8cff; border: 1px solid #6e40c9; }
+  header .tagline { color: var(--text-dim); font-size: 13px; margin-left: auto; }
+
+  /* ── Ethics Banner ── */
+  .ethics-banner {
+    background: linear-gradient(135deg, #1a2a0a 0%, #0d2a4e 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+  }
+  .ethics-banner .icon { font-size: 20px; }
+  .ethics-banner strong { color: var(--green); }
+  .ethics-banner span { color: var(--text-dim); }
+
+  /* ── Main Layout ── */
+  .main {
+    display: grid;
+    grid-template-columns: 220px 1fr 300px;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100vh - 110px);
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 16px 0;
+  }
+  .sidebar-section {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    padding: 8px 16px 4px;
+  }
+  .module-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 13px;
+    text-align: left;
+    transition: all 0.15s;
+    border-left: 3px solid transparent;
+  }
+  .module-btn:hover { background: var(--surface2); color: var(--text); }
+  .module-btn.active {
+    background: var(--surface2);
+    color: var(--green);
+    border-left-color: var(--green);
+  }
+  .module-btn .icon { font-size: 16px; width: 20px; text-align: center; }
+  .module-btn .label { flex: 1; }
+  .module-btn .tag {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--green-dim);
+    color: var(--green);
+    font-weight: 700;
+  }
+  .sidebar-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 12px 0;
+  }
+
+  /* ── Terminal ── */
+  .terminal-panel {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    overflow: hidden;
+  }
+  .terminal-titlebar {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .terminal-dots { display: flex; gap: 6px; }
+  .dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+  }
+  .dot-red    { background: #f85149; }
+  .dot-yellow { background: #d29922; }
+  .dot-green  { background: #3fb950; }
+  .terminal-title {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    flex: 1;
+    text-align: center;
+  }
+  .run-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .run-btn:hover { background: var(--accent-hover); }
+  .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .terminal {
+    flex: 1;
+    background: var(--terminal-bg);
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 16px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .terminal .prompt { color: var(--prompt); }
+  .terminal .cmd    { color: var(--text); }
+  .terminal .info   { color: var(--blue); }
+  .terminal .ok     { color: var(--green); }
+  .terminal .warn   { color: var(--yellow); }
+  .terminal .danger { color: var(--red); }
+  .terminal .dim    { color: var(--text-dim); }
+  .terminal .purple { color: var(--purple); }
+  .terminal .cyan   { color: var(--cyan); }
+  .terminal .header-line { color: #e6edf3; font-weight: bold; }
+  .cursor {
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    background: var(--green);
+    vertical-align: middle;
+    animation: blink 1s step-end infinite;
+    margin-left: 2px;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ── Info Panel ── */
+  .info-panel {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .info-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .info-section h3 {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+  .info-section p { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+  .info-section ul { list-style: none; }
+  .info-section ul li {
+    font-size: 13px;
+    color: var(--text-dim);
+    padding: 4px 0;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    line-height: 1.5;
+  }
+  .info-section ul li::before { content: "→"; color: var(--green); flex-shrink: 0; }
+  .ethics-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 8px;
+  }
+  .ethics-card .eth-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--green);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ethics-card p { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+  .use-chip {
+    display: inline-block;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin: 3px 2px;
+  }
+  .use-chip.green { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+
+  /* ── Progress bar ── */
+  .progress-section {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .progress-bar {
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── Footer ── */
+  footer {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  footer a { color: var(--blue); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🛡️ <span>defensive</span>-python-labs</div>
+  <div class="badges">
+    <span class="badge badge-green">Python 3.9+</span>
+    <span class="badge badge-blue">MIT License</span>
+    <span class="badge badge-yellow">Educational</span>
+    <span class="badge badge-purple">Defensive Only</span>
+  </div>
+  <div class="tagline">Interactive Simulator — no installation required</div>
+</header>
+
+<div class="ethics-banner">
+  <span class="icon">⚖️</span>
+  <div>
+    <strong>Ethical Use Only</strong>
+    <span> — All demos use public test hosts (scanme.nmap.org, example.com). Only scan/analyze systems you own or have explicit permission to test. This toolkit is for learning defensive security, not for unauthorized access.</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-section">Recon</div>
+    <button class="module-btn active" onclick="loadModule('portscan')" id="btn-portscan">
+      <span class="icon">🔍</span><span class="label">Port Scanner</span><span class="tag">TCP</span>
+    </button>
+    <button class="module-btn" onclick="loadModule('dns')" id="btn-dns">
+      <span class="icon">🌐</span><span class="label">DNS Recon</span>
+    </button>
+    <hr class="sidebar-divider">
+    <div class="sidebar-section">Password Security</div>
+    <button class="module-btn" onclick="loadModule('password')" id="btn-password">
+      <span class="icon">🔐</span><span class="label">Strength Analyzer</span>
+    </button>
+    <button class="module-btn" onclick="loadModule('crack')" id="btn-crack">
+      <span class="icon">🔓</span><span class="label">Hash Cracker</span><span class="tag">DEMO</span>
+    </button>
+    <hr class="sidebar-divider">
+    <div class="sidebar-section">Web Security</div>
+    <button class="module-btn" onclick="loadModule('headers')" id="btn-headers">
+      <span class="icon">🌍</span><span class="label">HTTP Headers</span>
+    </button>
+    <hr class="sidebar-divider">
+    <div class="sidebar-section">Forensics</div>
+    <button class="module-btn" onclick="loadModule('metadata')" id="btn-metadata">
+      <span class="icon">🔬</span><span class="label">File Metadata</span>
+    </button>
+    <button class="module-btn" onclick="loadModule('logs')" id="btn-logs">
+      <span class="icon">📋</span><span class="label">Log Analyzer</span>
+    </button>
+    <hr class="sidebar-divider">
+    <div class="sidebar-section">Malware Analysis</div>
+    <button class="module-btn" onclick="loadModule('malware')" id="btn-malware">
+      <span class="icon">🦠</span><span class="label">Static Analyzer</span><span class="tag">SAFE</span>
+    </button>
+  </nav>
+
+  <!-- Terminal -->
+  <div class="terminal-panel">
+    <div class="terminal-titlebar">
+      <div class="terminal-dots">
+        <div class="dot dot-red"></div>
+        <div class="dot dot-yellow"></div>
+        <div class="dot dot-green"></div>
+      </div>
+      <div class="terminal-title" id="terminal-title">bash — dplabs</div>
+      <button class="run-btn" id="run-btn" onclick="runDemo()">▶ Run Demo</button>
+    </div>
+    <div class="terminal" id="terminal"><span class="dim">Select a module from the sidebar and press ▶ Run Demo to see it in action.
+
+Type <span class="cmd">dplabs --help</span> in your own terminal after installing:
+  <span class="cyan">pip install defensive-python-labs</span>
+
+</span><span class="cursor"></span></div>
+  </div>
+
+  <!-- Info Panel -->
+  <aside class="info-panel" id="info-panel">
+    <div class="info-section">
+      <h3>🛡️ About This Toolkit</h3>
+      <p>Defensive Python Labs teaches real-world cybersecurity concepts through hands-on Python code. Every module is built with zero required dependencies and runs from a single CLI entry point.</p>
+    </div>
+    <div class="info-section">
+      <h3>📦 Install</h3>
+      <p style="font-family:monospace; background:var(--surface2); padding:8px 12px; border-radius:6px; border:1px solid var(--border); font-size:12px; color:var(--green);">pip install defensive-python-labs</p>
+    </div>
+    <div class="info-section">
+      <h3>⚖️ Ethical Use</h3>
+      <div class="ethics-card">
+        <div class="eth-title">✅ Allowed</div>
+        <p>Your own systems, CTF challenges, penetration testing with written permission, academic research, security education.</p>
+      </div>
+      <div class="ethics-card" style="border-color: #f85149; margin-top:8px;">
+        <div class="eth-title" style="color:var(--red);">🚫 Not Allowed</div>
+        <p>Scanning systems you don't own, unauthorized testing, any malicious use. This toolkit is for defenders, not attackers.</p>
+      </div>
+    </div>
+    <div class="info-section">
+      <h3>👥 Who Is This For?</h3>
+      <span class="use-chip green">Beginners</span>
+      <span class="use-chip green">CTF Players</span>
+      <span class="use-chip green">Developers</span>
+      <span class="use-chip green">SysAdmins</span>
+      <span class="use-chip green">Students</span>
+    </div>
+  </aside>
+
+</div>
+
+<footer>
+  <span>🛡️ defensive-python-labs v0.2.0 — Educational Cybersecurity Toolkit</span>
+  <span>
+    <a href="https://github.com/cutewizzy11/defensive-python-labs" target="_blank">GitHub</a> ·
+    <a href="https://github.com/cutewizzy11/defensive-python-labs/blob/main/LICENSE" target="_blank">MIT License</a> ·
+    Built by Paul Anyebe
+  </span>
+</footer>
+
+<script>
+// ── Module definitions ──────────────────────────────────────────────────────
+const MODULES = {
+
+  portscan: {
+    title: "Port Scanner — scanme.nmap.org",
+    info: {
+      what: "TCP port scanner with banner grabbing and service detection. Uses Python's concurrent.futures for 100 parallel workers — scans 1,000 ports in seconds.",
+      howItWorks: [
+        "Opens a TCP socket to each port with a configurable timeout",
+        "If port responds, tries to grab a service banner",
+        "Identifies service by port number from a built-in lookup table",
+        "Reports open ports, service names, and banners in a clean table"
+      ],
+      ethics: "Always scan your own systems or hosts with explicit written permission. Unauthorized port scanning is illegal in many jurisdictions.",
+      uses: ["Network auditing", "Firewall verification", "CTF recon", "Home lab inventory"]
+    },
+    steps: [
+      { delay: 0,    text: [{ c: "prompt", t: "user@lab:~$ " }, { c: "cmd", t: "dplabs portscan scanme.nmap.org --common --banner\n" }] },
+      { delay: 400,  text: [{ c: "info",   t: "\n[*] Scanning scanme.nmap.org ...\n" }] },
+      { delay: 800,  text: [{ c: "dim",    t: "    Resolving hostname ... " }, { c: "ok", t: "45.33.32.156\n" }] },
+      { delay: 1200, text: [{ c: "dim",    t: "    Starting scan: 50 common ports, timeout=1.0s, workers=100\n\n" }] },
+      { delay: 1600, text: [{ c: "header-line", t: "PORT     SERVICE         STATE   BANNER\n" }] },
+      { delay: 1700, text: [{ c: "dim",    t: "─".repeat(58) + "\n" }] },
+      { delay: 1900, text: [{ c: "ok",     t: "22       SSH             OPEN    SSH-2.0-OpenSSH_6.6.1p1 Ubuntu\n" }] },
+      { delay: 2200, text: [{ c: "ok",     t: "80       HTTP            OPEN    Apache/2.4.7 (Ubuntu)\n" }] },
+      { delay: 2500, text: [{ c: "ok",     t: "443      HTTPS           OPEN    \n" }] },
+      { delay: 2800, text: [{ c: "ok",     t: "9929     nping-echo      OPEN    \n" }] },
+      { delay: 3100, text: [{ c: "ok",     t: "31337    Elite           OPEN    \n" }] },
+      { delay: 3400, text: [{ c: "dim",    t: "\n    Scanned 50 ports in 1.23s\n" }] },
+      { delay: 3700, text: [{ c: "ok",     t: "[+] 5 open port(s) found on scanme.nmap.org\n" }] },
+      { delay: 4000, text: [{ c: "warn",   t: "\n[!] Reminder: Only scan systems you own or have permission to test.\n" }] },
+      { delay: 4300, text: [{ c: "prompt", t: "\nuser@lab:~$ " }] },
+    ]
+  },
+
+  dns: {
+    title: "DNS Recon — example.com",
+    info: {
+      what: "DNS reconnaissance and subdomain enumeration. Resolves hostnames, performs reverse lookups, and discovers live subdomains using a built-in 50-entry wordlist.",
+      howItWorks: [
+        "Resolves the target domain to IPs using Python's socket module",
+        "Tries 50 common subdomain prefixes concurrently (www, mail, ftp, api, ...)",
+        "Performs reverse PTR lookups to map IPs back to hostnames",
+        "Reports all live subdomains with their resolved IPs"
+      ],
+      ethics: "Use only on domains you own or have authorization to test. Subdomain enumeration can generate noticeable traffic in server logs.",
+      uses: ["Attack surface mapping", "Forgotten subdomain discovery", "DNS hygiene audits", "Bug bounty recon"]
+    },
+    steps: [
+      { delay: 0,    text: [{ c: "prompt", t: "user@lab:~$ " }, { c: "cmd", t: "dplabs dns example.com --subdomains\n" }] },
+      { delay: 500,  text: [{ c: "info",   t: "\n[*] Enumerating subdomains for example.com ...\n" }] },
+      { delay: 900,  text: [{ c: "dim",    t: "    Wordlist: 50 common prefixes | workers: 50\n\n" }] },
+      { delay: 1300, text: [{ c: "header-line", t: "SUBDOMAIN                                IP\n" }] },
+      { delay: 1400, text: [{ c: "dim",    t: "─".repeat(50) + "\n" }] },
+      { delay: 1700, text: [{ c: "ok",     t: "www.example.com                          93.184.216.34\n" }] },
+      { delay: 2000, text: [{ c: "ok",     t: "mail.example.com                         93.184.216.34\n" }] },
+      { delay: 2300, text: [{ c: "dim",    t: "ftp.example.com                          (no result)\n" }] },
+      { delay: 2600, text: [{ c: "ok",     t: "ns1.example.com                          205.251.196.1\n" }] },
+      { delay: 2900, text: [{ c: "dim",    t: "dev.example.com                          (no result)\n" }] },
+      { delay: 3200, text: [{ c: "ok",     t: "api.example.com                          93.184.216.50\n" }] },
+      { delay: 3500, text: [{ c: "dim",    t: "\n    Checked 50 subdomains in 2.14s\n" }] },
+      { delay: 3800, text: [{ c: "ok",     t: "[+] 4 subdomain(s) found.\n" }] },
+      { delay: 4100, text: [{ c: "info",   t: "\n    Tip: Pass a custom wordlist with --wordlist my_subs.txt\n" }] },
+      { delay: 4400, text: [{ c: "prompt", t: "\nuser@lab:~$ " }] },
+    ]
+  },
+
+  password: {
+    title: "Password Strength Analyzer",
+    info: {
+      what: "Entropy-based password strength checker that scores passwords 0–100 and detects common patterns, keyboard walks, and leet substitutions that weaken passwords.",
+      howItWorks: [
+        "Calculates Shannon entropy based on character set size × length",
+        "Checks against a list of 44 most common passwords (password, 123456, ...)",
+        "Detects keyboard walks (qwerty, asdf), leet patterns (@→a, 3→e)",
+        "Scores on length, complexity, entropy, and pattern penalties"
+      ],
+      ethics: "Only analyze passwords you own. Never run this tool against credentials you've obtained without permission.",
+      uses: ["Building secure password policies", "Employee training", "Auditing stored credential strength", "Personal security hygiene"]
+    },
+    steps: [
+      { delay: 0,    text: [{ c: "prompt", t: "user@lab:~$ " }, { c: "cmd", t: 'dplabs password --password "P@ssw0rd123!"\n' }] },
+      { delay: 600,  text: [{ c: "header-line", t: "\n" + "═".repeat(50) + "\n" }] },
+      { delay: 700,  text: [{ c: "header-line", t: "  Password Analysis Report\n" }] },
+      { delay: 800,  text: [{ c: "header-line", t: "═".repeat(50) + "\n" }] },
+      { delay: 900,  text: [{ c: "dim",    t: "  Password  : " }, { c: "warn", t: "P@ssw0rd123!\n" }] },
+      { delay: 1000, text: [{ c: "dim",    t: "  Length    : 12 characters\n" }] },
+      { delay: 1100, text: [{ c: "dim",    t: "  Entropy   : 54.3 bits\n" }] },
+      { delay: 1300, text: [{ c: "warn",   t: "  Score     : 58 / 100\n" }] },
+      { delay: 1400, text: [{ c: "warn",   t: "  Strength  : Moderate ⚠\n" }] },
+      { delay: 1600, text: [{ c: "header-line", t: "\n  Analysis:\n" }] },
+      { delay: 1800, text: [{ c: "ok",     t: "  ✓ Length meets minimum (12+ chars)\n" }] },
+      { delay: 2000, text: [{ c: "ok",     t: "  ✓ Contains uppercase letters\n" }] },
+      { delay: 2200, text: [{ c: "ok",     t: "  ✓ Contains lowercase letters\n" }] },
+      { delay: 2400, text: [{ c: "ok",     t: "  ✓ Contains digits\n" }] },
+      { delay: 2600, text: [{ c: "ok",     t: "  ✓ Contains special characters (!@#...)\n" }] },
+      { delay: 2800, text: [{ c: "warn",   t: "  ⚠ Detected leet substitutions (@→a, 0→o)\n" }] },
+      { delay: 3000, text: [{ c: "warn",   t: "  ⚠ Matches common mutation pattern of 'password'\n" }] },
+      { delay: 3200, text: [{ c: "header-line", t: "\n  Suggestions:\n" }] },
+      { delay: 3400, text: [{ c: "info",   t: "  → Add random characters unrelated to words\n" }] },
+      { delay: 3600, text: [{ c: "info",   t: "  → Use a passphrase: 'coffee-lamp-river-42!'\n" }] },
+      { delay: 3800, text: [{ c: "info",   t: "  → Avoid predictable patterns even with substitutions\n" }] },
+      { delay: 4100, text: [{ c: "header-line", t: "═".repeat(50) + "\n" }] },
+      { delay: 4400, text: [{ c: "prompt", t: "\nuser@lab:~$ " }] },
+    ]
+  },
+
+  crack: {
+    title: "Hash Cracker — Educational Demo",
+    info: {
+      what: "Educational hash cracker demonstrating how dictionary + brute-force attacks work. Supports MD5, SHA-1, SHA-256, SHA-512. Shows WHY weak passwords fall instantly.",
+      howItWorks: [
+        "Identifies hash type by hex string length (32=MD5, 40=SHA1, 64=SHA256)",
+        "Dictionary attack: tries words from a wordlist + common mutations (capitalize, append digits, leet)",
+        "Brute force: uses itertools.product to try all character combinations",
+        "Shows you exactly WHY 'password' → MD5 cracks in milliseconds"
+      ],
+      ethics: "Only crack hashes from your own systems or CTF challenges. Using this to gain unauthorized access is illegal and unethical.",
+      uses: ["Understanding why password hashing alone isn't enough", "CTF challenges", "Security training demos", "Testing your own password policy"]
+    },
+    steps: [
+      { delay: 0,    text: [{ c: "prompt", t: "user@lab:~$ " }, { c: "cmd", t: "dplabs crack 5f4dcc3b5aa765d61d8327deb882cf99 --wordlist rockyou.txt\n" }] },
+      { delay: 600,  text: [{ c: "info",   t: "\n[*] Target hash : 5f4dcc3b5aa765d61d8327deb882cf99\n" }] },
+      { delay: 800,  text: [{ c: "info",   t: "[*] Algorithm   : MD5 (detected: md5)\n" }] },
+      { delay: 1000, text: [{ c: "info",   t: "[*] Wordlist    : rockyou.txt (14,344,391 words)\n" }] },
+      { delay: 1300, text: [{ c: "dim",    t: "\n    Trying words + mutations ...\n" }] },
+      { delay: 1600, text: [{ c: "dim",    t: "    [  1 / 14344391] 123456 .............. ✗\n" }] },
+      { delay: 1900, text: [{ c: "dim",    t: "    [  2 / 14344391] password ........... " }, { c: "ok", t: "✓ MATCH!\n" }] },
+      { delay: 2200, text: [{ c: "header-line", t: "\n" + "═".repeat(50) + "\n" }] },
+      { delay: 2300, text: [{ c: "ok",     t: "  ✓ CRACKED in 0.003 seconds!\n" }] },
+      { delay: 2400, text: [{ c: "header-line", t: "═".repeat(50) + "\n" }] },
+      { delay: 2600, text: [{ c: "dim",    t: "  Hash      : 5f4dcc3b5aa765d61d8327deb882cf99\n" }] },
+      { delay: 2800, text: [{ c: "danger", t: "  Plaintext : password\n" }] },
+      { delay: 3000, text: [{ c: "dim",    t: "  Algorithm : MD5\n" }] },
+      { delay: 3200, text: [{ c: "dim",    t: "  Attempts  : 2\n" }] },
+      { delay: 3400, text: [{ c: "dim",    t: "  Method    : dictionary\n" }] },
+      { delay: 3700, text: [{ c: "warn",   t: "\n  ⚠ This is why 'password' is never safe.\n" }] },
+      { delay: 3900, text: [{ c: "warn",   t: "  ⚠ MD5 is not suitable for password storage — use bcrypt/argon2.\n" }] },
+      { delay: 4200, text: [{ c: "prompt", t: "\nuser@lab:~$ " }] },
+    ]
+  },
+
+  headers: {
+    title: "HTTP Security Headers — github.com",
+    info: {
+      what: "Checks a website's HTTP security headers and grades them A+ to F. Identifies missing protections that leave sites vulnerable to XSS, clickjacking, and MIME sniffing attacks.",
+      howItWorks: [
+        "Sends an HTTP HEAD request using Python's urllib (no external deps)",
+        "Checks 9 critical security headers: CSP, HSTS, X-Frame-Options, ...",
+        "Flags information-leaking headers (Server, X-Powered-By)",
+        "Calculates a grade: A+ (9/9) to F (0-4/9)"
+      ],
+      ethics: "Checking headers on any public website is generally safe and legal. Headers are public information returned by the server.",
+      uses: ["Web app security audits", "DevOps hardening checklists", "Bug bounty reconnaissance", "Compliance verification (PCI-DSS, GDPR)"]
+    },
+    steps: [
+      { delay: 0,    text: [{ c: "prompt", t: "user@lab:~$ " }, { c: "cmd", t: "dplabs headers https://github.com\n" }] },
+      { delay: 500,  text: [{ c: "info",   t: "\n[*] Checking security headers for https://github.com ...\n\n" }] },
+      { delay: 900,  text: [{ c: "header-line", t: "═".repeat(58) + "\n" }] },
+      { delay: 1000, text: [{ c: "header-line", t: "  HTTP Security Headers Report — github.com\n" }] },
+      { delay: 1100, text: [{ c: "header-line", t: "═".repeat(58) + "\n" }] },
+      { delay: 1300, text: [{ c: "ok",     t: "  Grade: A+\n" }] },
+      { delay: 1500, text: [{ c: "dim",    t: "  Score: 9/9 headers present\n\n" }] },
+      { delay: 1700, text: [{ c: "header-line", t: "  Security Headers:\n" }] },
+      { delay: 1900, text: [{ c: "ok",     t: "  ✓ Strict-Transport-Security   max-age=31536000; includeSubdomains\n" }] },
+      { delay: 2100, text: [{ c: "ok",     t: "  ✓ Content-Security-Policy     default-src 'none'; ...\n" }] },
+      { delay: 2300, text: [{ c: "ok",     t: "  ✓ X-Frame-Options             DENY\n" }] },
+      { delay: 2500, text: [{ c: "ok",     t: "  ✓ X-Content-Type-Options      nosniff\n" }] },
+      { delay: 2700, text: [{ c: "ok",     t: "  ✓ Referrer-Policy             no-referrer-when-downgrade\n" }] },
+      { delay: 2900, text: [{ c: "ok",     t: "  ✓ Permissions-Policy          interest-cohort=()\n" }] },
+      { delay: 3100, text: [{ c: "ok",     t: "  ✓ X-XSS-Protection            1; mode=block\n" }] },
+      { delay: 3300, text: [{ c: "ok",     t: "  ✓ Cross-Origin-Opener-Policy  same-origin\n" }] },
+      { delay: 3500, text: [{ c: "ok",     t: "  ✓ Cross-Origin-Resource-Policy same-origin\n" }] },
+      { delay: 3700, text: [{ c: "dim",    t: "\n  No information-leaking headers detected.\n" }] },
+      { delay: 4000, text: [{ c: "header-line", t: "═".repeat(58) + "\n" }] },
+      { delay: 4300, text: [{ c: "prompt", t: "\nuser@lab:~$ " }] },
+    ]
+  },
+
+  metadata: {
+    title: "File Metadata Extractor",
+    info: {
+      what: "Extracts forensic metadata from any file: magic bytes (real file type), cryptographic hashes, EXIF data, and anomaly detection. No file type spoofing goes unnoticed.",
+      howItWorks: [
+        "Reads the first 16 bytes to detect file type via magic bytes (regardless of extension)",
+        "Computes MD5, SHA-1, and SHA-256 hashes for VirusTotal lookups",
+        "Extracts EXIF metadata from images (GPS, camera model, timestamps)",
+        "Flags anomalies: extension mismatch, suspicious embedded strings"
+      ],
+      ethics: "Only analyze files you own or have permission to investigate. This tool is ideal for incident response on your own systems.",
+      uses: ["Incident response", "Malware triage", "Evidence integrity verification", "Privacy auditing of shared files"]
+    },
+    steps: [
+      { delay: 0,    text: [{ c: "prompt", t: "user@lab:~$ " }, { c: "cmd", t: "dplabs metadata suspicious_invoice.exe\n" }] },
+      { delay: 600,  text: [{ c: "header-line", t: "\n" + "═".repeat(58) + "\n" }] },
+      { delay: 700,  text: [{ c: "header-line", t: "  File Metadata Report\n" }] },
+      { delay: 800,  text: [{ c: "header-line", t: "═".repeat(58) + "\n" }] },
+      { delay: 1000, text: [{ c: "dim",    t: "  File        : suspicious_invoice.exe\n" }] },
+      { delay: 1200, text: [{ c: "dim",    t: "  Size        : 284,672 bytes (278.0 KB)\n" }] },
+      { delay: 1400, text: [{ c: "dim",    t: "  Modified    : 2024-01-15 09:23:41\n\n" }] },
+      { delay: 1600, text: [{ c: "header-line", t: "  Hashes (for VirusTotal):\n" }] },
+      { delay: 1800, text: [{ c: "dim",    t: "    MD5    : a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4\n" }] },
+      { delay: 2000, text: [{ c: "dim",    t: "    SHA1   : 1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b\n" }] },
+      { delay: 2200, text: [{ c: "dim",    t: "    SHA256 : 1a2b3c4d5e...8f9a0b1c2d3e4f (64 chars)\n\n" }] },
+      { delay: 2400, text: [{ c: "header-line", t: "  File Type Detection:\n" }] },
+      { delay: 2600, text: [{ c: "dim",    t: "    Extension : .exe\n" }] },
+      { delay: 2800, text: [{ c: "warn",   t: "    Magic     : PDF Document (%PDF-1.4)\n" }] },
+      { delay: 3000, text: [{ c: "danger", t: "    ⚠ ANOMALY: Extension (.exe) does not match detected type (PDF)\n\n" }] },
+      { delay: 3200, text: [{ c: "header-line", t: "  Anomalies Detected:\n" }] },
+      { delay: 3400, text: [{ c: "danger", t: "    ✗ File extension spoofing detected\n" }] },
+      { delay: 3600, text: [{ c: "danger", t: "    ✗ Embedded PE header found inside PDF structure\n" }] },
+      { delay: 3800, text: [{ c: "header-line", t: "═".repeat(58) + "\n" }] },
+      { delay: 4100, text: [{ c: "prompt", t: "\nuser@lab:~$ " }] },
+    ]
+  },
+
+  logs: {
+    title: "Log Analyzer — Apache Access Log",
+    info: {
+      what: "Parses Apache/Nginx access logs and SSH auth logs to detect brute-force attacks, SQL injection probes, XSS attempts, and LFI/path traversal attacks.",
+      howItWorks: [
+        "Parses Combined Log Format entries with regex (IP, timestamp, method, path, status, user-agent)",
+        "Detects suspicious patterns: SQLi (UNION SELECT), XSS (<script>), LFI (../../../)",
+        "Counts 404s per IP to detect scanners/crawlers",
+        "For SSH logs: counts failed logins per IP to detect brute-force campaigns"
+      ],
+      ethics: "Only analyze logs from systems you administer. Log data may contain personal information — handle with appropriate care.",
+      uses: ["Intrusion detection", "Incident post-mortem analysis", "WAF tuning", "Security operations center (SOC) training"]
+    },
+    steps: [
+      { delay: 0,    text: [{ c: "prompt", t: "user@lab:~$ " }, { c: "cmd", t: "dplabs logs --type apache /var/log/apache2/access.log\n" }] },
+      { delay: 600,  text: [{ c: "header-line", t: "\n" + "═".repeat(60) + "\n" }] },
+      { delay: 700,  text: [{ c: "header-line", t: "  Apache Log Analysis Report\n" }] },
+      { delay: 800,  text: [{ c: "header-line", t: "═".repeat(60) + "\n" }] },
+      { delay: 1000, text: [{ c: "dim",    t: "  Log file   : /var/log/apache2/access.log\n" }] },
+      { delay: 1100, text: [{ c: "dim",    t: "  Entries    : 14,823 log lines\n" }] },
+      { delay: 1200, text: [{ c: "dim",    t: "  Period     : 2024-01-14 00:00 → 2024-01-15 23:59\n\n" }] },
+      { delay: 1400, text: [{ c: "header-line", t: "  Traffic Summary:\n" }] },
+      { delay: 1600, text: [{ c: "dim",    t: "    Total requests    : 14,823\n" }] },
+      { delay: 1700, text: [{ c: "dim",    t: "    Unique IPs        : 312\n" }] },
+      { delay: 1800, text: [{ c: "warn",   t: "    4xx errors        : 891  (6.0%)\n" }] },
+      { delay: 1900, text: [{ c: "danger", t: "    5xx errors        : 23   (0.2%)\n\n" }] },
+      { delay: 2100, text: [{ c: "warn",   t: "  ⚠ Suspicious Requests Detected (47):\n" }] },
+      { delay: 2300, text: [{ c: "danger", t: "    SQL Injection     : 12 attempts from 185.220.101.47\n" }] },
+      { delay: 2400, text: [{ c: "danger", t: "      GET /search?q=1' UNION SELECT username,password FROM users--\n" }] },
+      { delay: 2600, text: [{ c: "danger", t: "    Path Traversal    : 8 attempts from 45.89.106.11\n" }] },
+      { delay: 2700, text: [{ c: "danger", t: "      GET /page?file=../../../etc/passwd\n" }] },
+      { delay: 2900, text: [{ c: "warn",   t: "    Scanner Activity  : 185.220.101.47 → 347 requests (47 × 404)\n" }] },
+      { delay: 3200, text: [{ c: "header-line", t: "\n  Top Attackers:\n" }] },
+      { delay: 3400, text: [{ c: "danger", t: "    185.220.101.47         347 requests   🚨 BLOCK RECOMMENDED\n" }] },
+      { delay: 3600, text: [{ c: "warn",   t: "    45.89.106.11            89 requests\n" }] },
+      { delay: 3800, text: [{ c: "header-line", t: "═".repeat(60) + "\n" }] },
+      { delay: 4100, text: [{ c: "prompt", t: "\nuser@lab:~$ " }] },
+    ]
+  },
+
+  malware: {
+    title: "Static Malware Analyzer — No Execution Required",
+    info: {
+      what: "Analyzes suspicious files WITHOUT executing them. Calculates Shannon entropy (detects packing/encryption), extracts IOCs (IPs, URLs, registry keys), and parses PE imports — all from raw bytes.",
+      howItWorks: [
+        "Shannon entropy: measures randomness of byte distribution (>7.5 = likely packed/encrypted)",
+        "String extraction: pulls all printable ASCII strings ≥4 chars from binary data",
+        "IOC matching: regex patterns for IPs, URLs, emails, registry keys, Base64 blobs",
+        "PE parsing: extracts DLL names from Windows Portable Executable import tables"
+      ],
+      ethics: "Always analyze malware samples in an isolated environment. Never execute unknown binaries. This tool reads bytes only — no code is ever run.",
+      uses: ["Malware triage", "Incident response", "CTF reverse engineering", "Security research"]
+    },
+    steps: [
+      { delay: 0,    text: [{ c: "prompt", t: "user@lab:~$ " }, { c: "cmd", t: "dplabs malware suspicious_document.pdf\n" }] },
+      { delay: 500,  text: [{ c: "info",   t: "\n[*] Running static analysis on: suspicious_document.pdf\n" }] },
+      { delay: 900,  text: [{ c: "dim",    t: "    Reading file ... 1,044,480 bytes\n" }] },
+      { delay: 1200, text: [{ c: "dim",    t: "    Computing hashes ...\n" }] },
+      { delay: 1500, text: [{ c: "dim",    t: "    Calculating entropy ...\n" }] },
+      { delay: 1800, text: [{ c: "dim",    t: "    Extracting strings ...\n" }] },
+      { delay: 2100, text: [{ c: "dim",    t: "    Scanning for IOCs ...\n\n" }] },
+      { delay: 2400, text: [{ c: "header-line", t: "═".repeat(58) + "\n" }] },
+      { delay: 2500, text: [{ c: "header-line", t: "  Static Malware Analysis Report\n" }] },
+      { delay: 2600, text: [{ c: "header-line", t: "  File   : suspicious_document.pdf\n" }] },
+      { delay: 2700, text: [{ c: "header-line", t: "  Size   : 1,020 KB\n" }] },
+      { delay: 2800, text: [{ c: "header-line", t: "═".repeat(58) + "\n" }] },
+      { delay: 3000, text: [{ c: "dim",    t: "  Hashes (for VirusTotal lookup):\n" }] },
+      { delay: 3100, text: [{ c: "dim",    t: "    MD5    : d41d8cd98f00b204e9800998ecf8427e\n" }] },
+      { delay: 3200, text: [{ c: "dim",    t: "    SHA256 : e3b0c44298fc1c149afbf4c8996fb924...\n\n" }] },
+      { delay: 3400, text: [{ c: "danger", t: "  Entropy   : 7.81 / 8.0  [VERY HIGH — likely packed/encrypted]\n" }] },
+      { delay: 3600, text: [{ c: "danger", t: "  Risk      : HIGH RISK — manual review strongly recommended (82/100)\n\n" }] },
+      { delay: 3800, text: [{ c: "warn",   t: "  ⚠ Suspicious Strings (6):\n" }] },
+      { delay: 3900, text: [{ c: "warn",   t: "    • cmd.exe\n    • powershell -enc\n    • CreateRemoteThread\n    • VirtualAllocEx\n    • WinExec\n    • socket.connect\n\n" }] },
+      { delay: 4100, text: [{ c: "warn",   t: "  Indicators of Compromise (IOCs):\n" }] },
+      { delay: 4200, text: [{ c: "danger", t: "    URL: http://192.168.4.1:4444/shell.php\n" }] },
+      { delay: 4300, text: [{ c: "danger", t: "    IPv4: 185.220.101.47, 45.89.106.11\n" }] },
+      { delay: 4400, text: [{ c: "danger", t: "    Registry Key: HKEY_CURRENT_USER\\Software\\Microsoft\\Run\n\n" }] },
+      { delay: 4600, text: [{ c: "header-line", t: "  Notes:\n" }] },
+      { delay: 4700, text: [{ c: "danger", t: "    ↑ Very high entropy suggests the file is packed, encrypted, or obfuscated.\n" }] },
+      { delay: 4800, text: [{ c: "danger", t: "    ↑ Found 6 suspicious string(s) associated with malicious behavior.\n" }] },
+      { delay: 4900, text: [{ c: "danger", t: "    ↑ Contains 1 URL(s) — review for C2 communication.\n" }] },
+      { delay: 5100, text: [{ c: "header-line", t: "═".repeat(58) + "\n" }] },
+      { delay: 5400, text: [{ c: "prompt", t: "\nuser@lab:~$ " }] },
+    ]
+  }
+};
+
+// ── State ────────────────────────────────────────────────────────────────────
+let currentModule = 'portscan';
+let animating = false;
+let timeouts = [];
+
+// ── Rendering ────────────────────────────────────────────────────────────────
+function el(tag, cls, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+}
+
+function clearTimeouts() {
+  timeouts.forEach(t => clearTimeout(t));
+  timeouts = [];
+}
+
+function loadModule(id) {
+  clearTimeouts();
+  animating = false;
+  currentModule = id;
+
+  // Update sidebar active state
+  document.querySelectorAll('.module-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + id).classList.add('active');
+
+  const mod = MODULES[id];
+  document.getElementById('terminal-title').textContent = mod.title;
+
+  // Clear terminal
+  const term = document.getElementById('terminal');
+  term.innerHTML = '<span class="cursor"></span>';
+
+  // Update info panel
+  updateInfoPanel(mod.info);
+
+  // Reset run button
+  const btn = document.getElementById('run-btn');
+  btn.textContent = '▶ Run Demo';
+  btn.disabled = false;
+}
+
+function updateInfoPanel(info) {
+  const panel = document.getElementById('info-panel');
+  panel.innerHTML = `
+    <div class="info-section">
+      <h3>📖 What It Does</h3>
+      <p>${info.what}</p>
+    </div>
+    <div class="info-section">
+      <h3>⚙️ How It Works</h3>
+      <ul>${info.howItWorks.map(s => `<li>${s}</li>`).join('')}</ul>
+    </div>
+    <div class="info-section">
+      <h3>⚖️ Ethics Note</h3>
+      <div class="ethics-card">
+        <div class="eth-title">⚖️ Ethical Use</div>
+        <p>${info.ethics}</p>
+      </div>
+    </div>
+    <div class="info-section">
+      <h3>🎯 Real-World Uses</h3>
+      ${info.uses.map(u => `<span class="use-chip green">${u}</span>`).join('')}
+    </div>
+    <div class="info-section">
+      <h3>📦 Install & Run</h3>
+      <p style="font-family:monospace; background:var(--surface2); padding:8px 10px; border-radius:6px; border:1px solid var(--border); font-size:11px; color:var(--green); line-height:1.8;">
+        pip install defensive-python-labs<br>
+        dplabs --help
+      </p>
+    </div>
+  `;
+}
+
+function runDemo() {
+  if (animating) return;
+  animating = true;
+  clearTimeouts();
+
+  const btn = document.getElementById('run-btn');
+  btn.textContent = '⏸ Running...';
+  btn.disabled = true;
+
+  const term = document.getElementById('terminal');
+  term.innerHTML = ''; // clear
+
+  const mod = MODULES[currentModule];
+  const steps = mod.steps;
+  const totalDuration = steps[steps.length - 1].delay + 600;
+
+  // Progress bar
+  const progressDiv = document.createElement('div');
+  progressDiv.className = 'progress-section';
+  progressDiv.innerHTML = `
+    <div class="progress-label"><span>Running demo...</span><span id="prog-pct">0%</span></div>
+    <div class="progress-bar"><div class="progress-fill" id="prog-fill"></div></div>
+  `;
+  term.parentElement.insertBefore(progressDiv, term);
+
+  // Animate progress
+  function updateProgress(t) {
+    const pct = Math.min(100, Math.round((t / totalDuration) * 100));
+    const fill = document.getElementById('prog-fill');
+    const pctEl = document.getElementById('prog-pct');
+    if (fill) fill.style.width = pct + '%';
+    if (pctEl) pctEl.textContent = pct + '%';
+  }
+
+  // Schedule each step
+  steps.forEach(step => {
+    const t = setTimeout(() => {
+      updateProgress(step.delay);
+      const line = document.createElement('span');
+      step.text.forEach(part => {
+        const s = document.createElement('span');
+        s.className = part.c;
+        s.textContent = part.t;
+        line.appendChild(s);
+      });
+      term.appendChild(line);
+      term.scrollTop = term.scrollHeight;
+    }, step.delay);
+    timeouts.push(t);
+  });
+
+  // Final: add cursor, reset button, remove progress
+  const finalT = setTimeout(() => {
+    updateProgress(totalDuration);
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    term.appendChild(cursor);
+    term.scrollTop = term.scrollHeight;
+
+    setTimeout(() => {
+      progressDiv.remove();
+      btn.textContent = '▶ Run Again';
+      btn.disabled = false;
+      animating = false;
+    }, 400);
+  }, totalDuration);
+  timeouts.push(finalT);
+}
+
+// Load default module info on page load
+window.onload = () => {
+  updateInfoPanel(MODULES['portscan'].info);
+};
+</script>
+</body>
+</html>
